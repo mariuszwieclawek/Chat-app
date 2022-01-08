@@ -280,10 +280,11 @@ void send_all(int sendfd, SA *sadest, socklen_t salen)
 
 	if (uname(&myname) < 0)
 		perror("uname error");
-	getline(&text,&bufsize,stdin);
-	snprintf(line, sizeof(line), "%s: %s", myname.nodename, text);
 
 	for ( ; ; ) {
+		getline(&text,&bufsize,stdin);
+		snprintf(line, sizeof(line), "%s: %s", myname.nodename, text);
+
 		if(sendto(sendfd, line, strlen(line), 0, sadest, salen) < 0 )
 		  fprintf(stderr,"sendto() error : %s\n", strerror(errno));
 		sleep(SENDRATE);
