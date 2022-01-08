@@ -19,8 +19,7 @@
 #define IPV6 1
 
 
-unsigned int
-_if_nametoindex(const char *ifname)
+unsigned int _if_nametoindex(const char *ifname)
 {
 	int s;
 	struct ifreq ifr;
@@ -31,7 +30,7 @@ _if_nametoindex(const char *ifname)
 
 	memset(&ifr, 0, sizeof(ifr));
 	strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
-
+	
 	if (ioctl(s, SIOCGIFINDEX, &ifr) != -1) {
 			close(s);
 			return (ifr.ifr_ifindex);
@@ -109,8 +108,7 @@ int family_to_level(int family)
 	}
 }
 
-int mcast_join(int sockfd, const SA *grp, socklen_t grplen,
-		   const char *ifname, u_int ifindex)
+int mcast_join(int sockfd, const SA *grp, socklen_t grplen,const char *ifname, u_int ifindex)
 {
 	struct group_req req;
 	if (ifindex > 0) {
@@ -320,28 +318,30 @@ void recv_all(int recvfd, socklen_t salen)
 
 
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	int sendfd, recvfd;
 	const int on = 1;
 	socklen_t salen;
-	struct sockaddr	*sasend, *sarecv;
-	struct sockaddr_in6 *ipv6addr;
-	struct sockaddr_in *ipv4addr;
+	struct sockaddr	*sasend, *sarecv; // przechowuje inf o rodzinie adresu afinet
+	struct sockaddr_in6 *ipv6addr; // to co nizej tylko dodatkowe opcje
+	struct sockaddr_in *ipv4addr; //struktura przechowuje rodzine adresu,port,adres
 
 	if (argc != 4){
 		fprintf(stderr, "usage: %s  <IP-multicast-address> <port#> <if name>\n", argv[0]);
 		return 1;
 	}
 
+// funkcja na podstawie adresu 4/6 i portu tworzy gniazdo wysylajace oraz wypelnia strukture adresowa sasend, pozniej adres stad wykorzystujemy w funkcji wysylajacej
 	sendfd = snd_udp_socket(argv[1], atoi(argv[2]), &sasend, &salen);
 
+// tworzymy gniazdo odbierajaca, rodzina adresow ze struktury sasend 
 	if ( (recvfd = socket(sasend->sa_family, SOCK_DGRAM, 0)) < 0){
 		fprintf(stderr,"socket error : %s\n", strerror(errno));
 		return 1;
 	}
 
+// ustawiamy na gniezdzie odbierajacym,SO_REUSEADDR w jednej stacji mozemy odpalic kilka  procesow i beda nasluchiwac na tym samym porcie i beda mogly odbierac miedzy soba dane
 	if (setsockopt(recvfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0){
 		fprintf(stderr,"setsockopt error : %s\n", strerror(errno));
 		return 1;
@@ -350,16 +350,20 @@ main(int argc, char **argv)
 	sarecv = malloc(salen);
 	memcpy(sarecv, sasend, salen);
 
+// Dowiazanie sie gniazna do interfejsu , ta linia kodu i te ponizsze mniej wiecej robia to samo
+// 1 sposob
 	setsockopt(sendfd, SOL_SOCKET, SO_BINDTODEVICE, argv[3], strlen(argv[3]));
-/*	
-	if(sarecv->sa_family == AF_INET6){
+
+
+// tez dowiazanie
+// 2 sposob
+/*	if(sarecv->sa_family == AF_INET6){
 	  ipv6addr = (struct sockaddr_in6 *) sarecv;
 	  ipv6addr->sin6_addr =  in6addr_any;
 
 	  int32_t ifindex;
-      ifindex = if_nametoindex(argv[3]);
-      if(setsockopt(sendfd, IPPROTO_IPV6, IPV6_MULTICAST_IF, 
-	  				&ifindex, sizeof(ifindex)) < 0){
+          ifindex = if_nametoindex(argv[3]);
+	  if(setsockopt(sendfd, IPPROTO_IPV6, IPV6_MULTICAST_IF,&ifindex, sizeof(ifindex)) < 0){
 	  		perror("setting local interface");
 			exit(1);};
 	  }
@@ -368,26 +372,28 @@ main(int argc, char **argv)
 	  ipv4addr = (struct sockaddr_in *) sarecv;
 	  ipv4addr->sin_addr.s_addr =  htonl(INADDR_ANY);
 
-	  struct in_addr        localInterface;
+	  struct in_addr        localInterface; //struktura przechowuje sam adres ip
 	  localInterface.s_addr = inet_addr("127.0.0.1");
-	  if (setsockopt(sendfd, IPPROTO_IP, IP_MULTICAST_IF,
-						(char *)&localInterface,
-						sizeof(localInterface)) < 0) {
+	 if (setsockopt(sendfd, IPPROTO_IP, IP_MULTICAST_IF,(char *)&localInterface,sizeof(localInterface)) < 0) {
 			perror("setting local interface");
 			exit(1);
 	  }
 	}
-*/	
+*/
+
+// dowiazujemy sie do konkretnego portu
 	if( bind(recvfd, sarecv, salen) < 0 ){
 	    fprintf(stderr,"bind error : %s\n", strerror(errno));
 	    return 1;
 	}
-	
+
+// dowiazujemy sie grupy multicastowej
 	if( mcast_join(recvfd, sasend, salen, argv[3], 0) < 0 ){
 		fprintf(stderr,"mcast_join() error : %s\n", strerror(errno));
 		return 1;
 	}
-	  
+
+//
 	mcast_set_loop(sendfd, 1);
 
 	if (fork() == 0)
