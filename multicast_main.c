@@ -318,7 +318,7 @@ void recv_all(int recvfd, socklen_t salen)
 		      inet_ntop(AF_INET, (struct sockaddr  *) &cliaddrv4->sin_addr,  addr_str, sizeof(addr_str));
 		}
 
-		printf("%s\n", line);
+		printf("%s", line);
 		fflush(stdout);
 	}
 }
@@ -337,7 +337,6 @@ int main(int argc, char **argv)
 	size_t bufsize = 1024; // wielkosc buforu
 	char		line[MAXLINE]; // bufor
 
-
 	if (argc != 4){
 		fprintf(stderr, "usage: %s  <IP-multicast-address> <port#> <if name>\n", argv[0]);
 		return 1;
@@ -346,8 +345,18 @@ int main(int argc, char **argv)
 //podanie imienia
 	printf("login:");
 	login = (char *)malloc(bufsize * sizeof(char));
-	getline(&login,&bufsize,stdin);
-	snprintf(line, sizeof(line), "%s", login);
+	int no_read = getline(&login,&bufsize,stdin);
+	login[no_read-1] = '\0'; 
+	snprintf(line, sizeof(line), "%s", login-1);
+
+	FILE * users_data = fopen("users_data.txt","w");
+	if (users_data == NULL) 
+            {   
+              printf("Error! Could not open file\n"); 
+            	return 1; // must include stdlib.h 
+            } 
+	fprintf(users_data, "%s\n", login);
+
 
 // funkcja na podstawie adresu 4/6 i portu tworzy gniazdo wysylajace oraz wypelnia strukture adresowa sasend, pozniej adres stad wykorzystujemy w funkcji wysylajacej
 	sendfd = snd_udp_socket(argv[1], atoi(argv[2]), &sasend, &salen);
