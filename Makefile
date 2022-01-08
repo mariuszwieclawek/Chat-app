@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-I.
 #CFLAGS=
 
-OBJECTS = multicast_main udp_daytime_cli_br udp_daytime_cli_listen6 udp_daytime_cli_listen udp_daytime_srvv4_br udp_daytime_srvv4
+OBJECTS = multicast_main 
 
 all: $(OBJECTS)
 

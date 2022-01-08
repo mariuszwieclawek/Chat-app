@@ -19,6 +19,7 @@
 #define IPV6 1
 
 
+//zamienia nazwe interfjesu na jego indeks
 unsigned int _if_nametoindex(const char *ifname)
 {
 	int s;
@@ -44,6 +45,8 @@ unsigned int _if_nametoindex(const char *ifname)
 // unsigned int if_nametoindex(const char *ifname);
 // char *if_indextoname(unsigned int ifindex, char *ifname);
 
+
+//funkcja tworzaca gniazdo wysylajace dla udp
 int snd_udp_socket(const char *serv, int port, SA **saptr, socklen_t *lenp)
 {
 	int sockfd, n;
@@ -52,13 +55,13 @@ int snd_udp_socket(const char *serv, int port, SA **saptr, socklen_t *lenp)
 	struct sockaddr_in *pservaddrv4;
 
 	*saptr = malloc( sizeof(struct sockaddr_in6));
-	
+
 	pservaddrv6 = (struct sockaddr_in6*)*saptr;
 
 	bzero(pservaddrv6, sizeof(struct sockaddr_in6));
 
 	if (inet_pton(AF_INET6, serv, &pservaddrv6->sin6_addr) <= 0){
-	
+
 		free(*saptr);
 		*saptr = malloc( sizeof(struct sockaddr_in));
 		pservaddrv4 = (struct sockaddr_in*)*saptr;
