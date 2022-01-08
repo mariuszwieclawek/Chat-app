@@ -265,11 +265,10 @@ int mcast_set_loop(int sockfd, int onoff)
 
 
 void	recv_all(int, socklen_t);
-void	send_all(int, SA *, socklen_t);
+void	send_all(int, SA *, socklen_t, char *);
 
-#define	SENDRATE	5		/* send one datagram every five seconds */
 
-void send_all(int sendfd, SA *sadest, socklen_t salen)
+void send_all(int sendfd, SA *sadest, socklen_t salen,char *login)
 {
 	char		line[MAXLINE];		/* hostname and process ID */
 	char *text;
@@ -283,11 +282,10 @@ void send_all(int sendfd, SA *sadest, socklen_t salen)
 
 	for ( ; ; ) {
 		getline(&text,&bufsize,stdin);
-		snprintf(line, sizeof(line), "%s: %s", myname.nodename, text);
+		snprintf(line, sizeof(line), "%s: %s", login, text);
 
 		if(sendto(sendfd, line, strlen(line), 0, sadest, salen) < 0 )
 		  fprintf(stderr,"sendto() error : %s\n", strerror(errno));
-		sleep(SENDRATE);
 	}
 }
 
@@ -335,11 +333,21 @@ int main(int argc, char **argv)
 	struct sockaddr	*sasend, *sarecv; // przechowuje inf o rodzinie adresu afinet
 	struct sockaddr_in6 *ipv6addr; // to co nizej tylko dodatkowe opcje
 	struct sockaddr_in *ipv4addr; //struktura przechowuje rodzine adresu,port,adres
+	char *login; // zapiszemy tu login uzytkownika
+	size_t bufsize = 1024; // wielkosc buforu
+	char		line[MAXLINE]; // bufor
+
 
 	if (argc != 4){
 		fprintf(stderr, "usage: %s  <IP-multicast-address> <port#> <if name>\n", argv[0]);
 		return 1;
 	}
+
+//podanie imienia
+	printf("login:");
+	login = (char *)malloc(bufsize * sizeof(char));
+	getline(&login,&bufsize,stdin);
+	snprintf(line, sizeof(line), "%s", login);
 
 // funkcja na podstawie adresu 4/6 i portu tworzy gniazdo wysylajace oraz wypelnia strukture adresowa sasend, pozniej adres stad wykorzystujemy w funkcji wysylajacej
 	sendfd = snd_udp_socket(argv[1], atoi(argv[2]), &sasend, &salen);
@@ -408,5 +416,5 @@ int main(int argc, char **argv)
 	if (fork() == 0)
 		recv_all(recvfd, salen);	/* child -> receives */
 
-	send_all(sendfd, sasend, salen);	/* parent -> sends */
+	send_all(sendfd, sasend, salen, login);	/* parent -> sends */
 }
