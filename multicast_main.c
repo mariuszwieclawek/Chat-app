@@ -1,20 +1,20 @@
-#include        <sys/types.h>   /* basic system data types */
-#include        <sys/socket.h>  /* basic socket definitions */
-#include        <netinet/in.h>  /* sockaddr_in{} and other Internet defns */
-#include        <arpa/inet.h>   /* inet(3) functions */
-#include        <errno.h>
-#include        <signal.h>
-#include        <stdio.h>
-#include        <stdlib.h>
-#include        <string.h>
-#include 	<sys/ioctl.h>
-#include 	<unistd.h>
-#include 	<net/if.h>
-#include	<netdb.h>
-#include	<sys/utsname.h>
-#include	<linux/un.h>
+#include <sys/types.h>   /* basic system data types */
+#include <sys/socket.h>  /* basic socket definitions */
+#include <netinet/in.h>  /* sockaddr_in{} and other Internet defns */
+#include <arpa/inet.h>   /* inet(3) functions */
+#include <errno.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#include <net/if.h>
+#include <netdb.h>
+#include <sys/utsname.h>
+#include <linux/un.h>
 
-#define MAXLINE 1024
+#define MAXLINE 512
 #define SA      struct sockaddr
 #define IPV6 1
 
@@ -344,7 +344,7 @@ int get_mac_addr(char* name, char* mac){
 
 	close(sd);
 
-	char buf[4000];
+	char buf[19];
 	sprintf(buf,"%02x:%02x:%02x:%02x:%02x:%02x\n",
 		(int)((unsigned char *) &ifr.ifr_hwaddr.sa_data)[0],
 		(int)((unsigned char *) &ifr.ifr_hwaddr.sa_data)[1],
@@ -367,50 +367,82 @@ int main(int argc, char **argv)
 	struct sockaddr_in6 *ipv6addr; // to co nizej tylko dodatkowe opcje
 	struct sockaddr_in *ipv4addr; //struktura przechowuje rodzine adresu,port,adres
 	char *login; // zapiszemy tu login uzytkownika
-	size_t bufsize = 1024; // wielkosc buforu
-	char		line[MAXLINE]; // bufor
+	char* mac; // zapisujemy tu adres MAC uzytkownika
+	size_t bufsize = 50; // wielkosc buforu
+	char line[MAXLINE]; // bufor
 
 	if (argc != 4){
 		fprintf(stderr, "usage: %s  <IP-multicast-address> <port#> <if name>\n", argv[0]);
 		return 1;
 	}
 
-// podanie imienia
-	printf("login:");
 	login = (char *)malloc(bufsize * sizeof(char));
-	int no_read = getline(&login,&bufsize,stdin);
-	login[no_read-1] = '\0'; 
+	mac = (char *)malloc(bufsize * sizeof(char));
 
-// adres mac
-	char* mac;
+// odczyt adresu MAC
 	get_mac_addr(argv[3],mac);
-	//printf("%s\n",mac);
-
-// zapis do pliku danych uzytkownika
-	FILE * users_data = fopen("users_data.txt","w");
-	if (users_data == NULL) 
-            {   
-              printf("Error! Could not open file\n"); 
-            	return 1; 
-            } 
-	fprintf(users_data, "%s\n", login);
-	fprintf(users_data, "%s\n", mac);
-	fclose(users_data);
 
 // odczyt z pliku danych uzytkownika
-	users_data = fopen("users_data.txt","r");
+	FILE *users_data = fopen("users_data.txt","r");
 	if (users_data == NULL) 
             {   
               printf("Error! Could not open file\n"); 
             	return 1; 
             } 
+	fgets(line, MAXLINE, users_data); // odczyt z pliku do bufora calosci (login i mac)
+	
+	fclose(users_data);
 
-	printf("Odczyt z pliku:\n");
- 	while(fgets(line, 255, users_data ) != NULL ){
- 		printf ("%s", line);
- 	}
+// odczyt loginu z pliku
+	for(int i = 0; i< MAXLINE; i++){ 
+		if(line[i] == ' ')
+			break;
+		login[i] = line[i];
+	}
 
- 	fclose(users_data);
+// odczyt adresu MAC z pliku i sprawdzenie czy uruchomiono program na interfejsie ktory juz sie rejestrowal
+	char mac_file[17];
+	int j=0;
+	for(int i = sizeof(login); i<MAXLINE; i++,j++){ //odczyt z pliku zapisanego adresu MAC
+		if(line[i] == '\n')
+			break;
+		mac_file[j] = line[i];
+	}
+
+	int check;
+	for(int k = 0; k<=sizeof(mac_file)-1; k++){ //sprawdzenie czy adres mac juz istnieje w plikach (czy uzytkownik sie juz rejestrowal)
+		if(mac_file[k] != mac[k]){ //kiedy nie istnieje
+			check = 0;
+			break;
+		}
+		else	//kiedy istnieje
+			check = 1;
+	}
+
+//kontrola czy uzytkownik istnieje i wyswietlenie informacji dla uzytkownika
+	if(check)
+			printf("Welcome back %s!\nYou can start texting:\n",login);
+	else{ //kiedy nie istnieje to rejestrujemy uzytkownika (podajemy login)
+		printf("You are unregistered, please enter your nickname!\nLogin:");
+		int no_read = getline(&login,&bufsize,stdin);
+		login[no_read-1] = '\0'; 
+		printf("You can start texting:\n");
+	}
+
+
+// zapis do pliku danych uzytkownika kiedy jego dane nie sa zapisane w pliku (rejestracja)
+	if(!check){
+		users_data = fopen("users_data.txt","w");
+		if (users_data == NULL){   
+			printf("Error! Could not open file\n"); 
+				return 1; 
+		} 
+		get_mac_addr(argv[3],mac);
+		fprintf(users_data, "%s ", login);
+		fprintf(users_data, "%s\n", mac);
+		fclose(users_data);
+	}
+
 
 // funkcja na podstawie adresu 4/6 i portu tworzy gniazdo wysylajace oraz wypelnia strukture adresowa sasend, pozniej adres stad wykorzystujemy w funkcji wysylajacej
 	sendfd = snd_udp_socket(argv[1], atoi(argv[2]), &sasend, &salen);
