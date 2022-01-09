@@ -380,23 +380,37 @@ int main(int argc, char **argv)
 	login = (char *)malloc(bufsize * sizeof(char));
 	int no_read = getline(&login,&bufsize,stdin);
 	login[no_read-1] = '\0'; 
-	snprintf(line, sizeof(line), "%s", login-1);
 
 // adres mac
 	char* mac;
 	get_mac_addr(argv[3],mac);
-	printf("%s\n",mac);
+	//printf("%s\n",mac);
 
 // zapis do pliku danych uzytkownika
 	FILE * users_data = fopen("users_data.txt","w");
 	if (users_data == NULL) 
             {   
               printf("Error! Could not open file\n"); 
-            	return 1; // must include stdlib.h 
+            	return 1; 
             } 
 	fprintf(users_data, "%s\n", login);
 	fprintf(users_data, "%s\n", mac);
 	fclose(users_data);
+
+// odczyt z pliku danych uzytkownika
+	users_data = fopen("users_data.txt","r");
+	if (users_data == NULL) 
+            {   
+              printf("Error! Could not open file\n"); 
+            	return 1; 
+            } 
+
+	printf("Odczyt z pliku:\n");
+ 	while(fgets(line, 255, users_data ) != NULL ){
+ 		printf ("%s", line);
+ 	}
+
+ 	fclose(users_data);
 
 // funkcja na podstawie adresu 4/6 i portu tworzy gniazdo wysylajace oraz wypelnia strukture adresowa sasend, pozniej adres stad wykorzystujemy w funkcji wysylajacej
 	sendfd = snd_udp_socket(argv[1], atoi(argv[2]), &sasend, &salen);
