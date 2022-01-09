@@ -323,6 +323,39 @@ void recv_all(int recvfd, socklen_t salen)
 	}
 }
 
+int get_mac_addr(char* name, char* mac){
+	struct ifreq ifr;
+	int sd,merr;
+	sd = socket(PF_INET,SOCK_STREAM,0);
+	if(sd < 0)
+	{
+		fprintf(stderr,"if_up: socket eroor %s\n", strerror(errno));
+		return sd;
+	}
+
+	memset(&ifr,0,sizeof(ifr));
+	sprintf(ifr.ifr_name,"%s",name);
+	merr = ioctl(sd,SIOCGIFHWADDR,&ifr); //read MAC address
+	if(merr < 0)
+	{
+		close(sd);
+		return merr;
+	}
+
+	close(sd);
+
+	char buf[4000];
+	sprintf(buf,"%02x:%02x:%02x:%02x:%02x:%02x\n",
+		(int)((unsigned char *) &ifr.ifr_hwaddr.sa_data)[0],
+		(int)((unsigned char *) &ifr.ifr_hwaddr.sa_data)[1],
+		(int)((unsigned char *) &ifr.ifr_hwaddr.sa_data)[2],
+		(int)((unsigned char *) &ifr.ifr_hwaddr.sa_data)[3],
+		(int)((unsigned char *) &ifr.ifr_hwaddr.sa_data)[4],
+		(int)((unsigned char *) &ifr.ifr_hwaddr.sa_data)[5]);
+	
+	strcpy(mac,buf);
+
+}
 
 
 int main(int argc, char **argv)
@@ -342,13 +375,19 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-//podanie imienia
+// podanie imienia
 	printf("login:");
 	login = (char *)malloc(bufsize * sizeof(char));
 	int no_read = getline(&login,&bufsize,stdin);
 	login[no_read-1] = '\0'; 
 	snprintf(line, sizeof(line), "%s", login-1);
 
+// adres mac
+	char* mac;
+	get_mac_addr(argv[3],mac);
+	printf("%s\n",mac);
+
+// zapis do pliku danych uzytkownika
 	FILE * users_data = fopen("users_data.txt","w");
 	if (users_data == NULL) 
             {   
@@ -356,7 +395,8 @@ int main(int argc, char **argv)
             	return 1; // must include stdlib.h 
             } 
 	fprintf(users_data, "%s\n", login);
-
+	fprintf(users_data, "%s\n", mac);
+	fclose(users_data);
 
 // funkcja na podstawie adresu 4/6 i portu tworzy gniazdo wysylajace oraz wypelnia strukture adresowa sasend, pozniej adres stad wykorzystujemy w funkcji wysylajacej
 	sendfd = snd_udp_socket(argv[1], atoi(argv[2]), &sasend, &salen);
