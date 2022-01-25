@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-I.
 #CFLAGS=
 
-OBJECTS = multicast_main 
+OBJECTS = multicast_main server client
 
 all: $(OBJECTS)
 
