@@ -316,12 +316,15 @@ void send_all(int sendfd, SA *sadest, socklen_t salen,char *login)
 	if (uname(&myname) < 0)
 		perror("uname error");
 
+	snprintf(line, sizeof(line), "%s connected to the chat room!\n", login);
+	if(sendto(sendfd, line, strlen(line), 0, sadest, salen) < 0 )
+		fprintf(stderr,"sendto() error : %s\n", strerror(errno));
+
 	for ( ; ; ) {
 		getline(&text,&bufsize,stdin);
 		snprintf(line, sizeof(line), "%s: %s", login, text);
-
 		if(sendto(sendfd, line, strlen(line), 0, sadest, salen) < 0 )
-		  fprintf(stderr,"sendto() error : %s\n", strerror(errno));
+			fprintf(stderr,"sendto() error : %s\n", strerror(errno));
 	}
 }
 
@@ -432,7 +435,6 @@ int main(int argc, char **argv)
 		printf("You are unregistered, please enter your nickname!\nLogin:");
 		int no_read = getline(&login,&bufsize,stdin);
 		login[no_read-1] = '\0'; 
-		printf("Welcome %s! Now you can start chatting!\n",login);
 		snprintf(send,sizeof(send),"%s",login);
 	        if( write(servfd, send, sizeof(send))< 0 )
         	       	fprintf(stderr,"write error : %s\n", strerror(errno));
@@ -443,8 +445,6 @@ int main(int argc, char **argv)
 		printf("Welcome back %s!\nYou can start texting:\n",login);
 	}
 
-	free(login);
-	free(mac);
 /////////////////////////////////////
 
 
