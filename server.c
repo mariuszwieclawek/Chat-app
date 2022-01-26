@@ -34,10 +34,6 @@ int main(int argc, char **argv)
 	char line[MAXLINE]; // bufor
 	int exit = 3; // wyjscie z petli ktora odczytuje i sprawdza czy istnieje dany uzytkownik
 
-	if (argc != 4){
-		fprintf(stderr, "usage: %s  <IP-multicast-address> <port#> <if name>\n", argv[0]);
-		return 1;
-	}
 
 
 /////////////////////////////////////////
@@ -73,7 +69,7 @@ int main(int argc, char **argv)
         }
 	fprintf(stderr,"Waiting for clients ... \n");
 	for ( ; ; ) {
-		login = (char *)malloc(bufsize * sizeof(char));
+//		login = (char *)malloc(bufsize * sizeof(char));
 		len = sizeof(cliaddr);
         	if ( (connfd = accept(listenfd, (struct sockaddr *) &cliaddr, &len)) < 0){
                 	fprintf(stderr,"accept error : %s\n", strerror(errno));
@@ -108,12 +104,11 @@ int main(int argc, char **argv)
 		int check = 0;
 		int iter = 1;
 		while((readline = getline(&tekstline,&len,users_data)) != -1){
-			//fgets(line, MAXLINE, users_data); // odczyt z pliku do bufora calosci (login i mac)
-			printf("iteracja nr:%d\n",iter);
-			iter++;
-			//fclose(users_data);
+			login = (char *)malloc(bufsize * sizeof(char));
+//			printf("iteracja nr:%d\n",iter);
+//			iter++;
 
-	// odczyt loginu z pliku
+// odczyt loginu z pliku
 			int mac_position;
 			for(int i = 0; i< MAXLINE; i++){ 
 				if(tekstline[i] == ' '){
@@ -121,20 +116,20 @@ int main(int argc, char **argv)
 					break;
 				}
 				login[i] = tekstline[i];
-				printf("%c",login[i]);
+//				printf("%c",login[i]);
 			}
-			printf("\n");
+//			printf("\n");
 
-	// odczyt adresu MAC z pliku i sprawdzenie czy uruchomiono program na interfejsie ktory juz sie rejestrowal
+// odczyt adresu MAC z pliku i sprawdzenie czy uruchomiono program na interfejsie ktory juz sie rejestrowal
 			char mac_file[17];
 			int j=0;
 			for(int i = mac_position+1; i<MAXLINE; i++,j++){ //odczyt z pliku zapisanego adresu MAC
 				if(tekstline[i] == '\n')
 					break;
 				mac_file[j] = tekstline[i];
-				printf("%c",tekstline[i]);
+//				printf("%c",tekstline[i]);
 			}
-			printf("\n");
+/*			printf("\n");
 
 			printf("mac get:\n");
 			for(int i = 0; i<strlen(mac);i++){
@@ -145,27 +140,26 @@ int main(int argc, char **argv)
 			for(int i = 0; i<strlen(mac);i++){
 				printf("%c",mac_file[i]);
 			}
-
-			printf("\npetla:\n");
+*/
+//			printf("\npetla:\n");
 			for(int k = 0; k<=sizeof(mac_file)-1; k++){ //sprawdzenie czy adres mac juz istnieje w plikach (czy uzytkownik sie juz rejestrowal)
-				printf("send:%c\n",mac[k]);
-				printf("file:%c\n",mac_file[k]);
+//				printf("send:%c\n",mac[k]);
+//				printf("file:%c\n",mac_file[k]);
 
 				if(mac_file[k] != mac[k]){ //kiedy nie istnieje
+					free(login);
 					check = 0;
-					exit = 0;
 					break;
 				}
 				else{	//kiedy istnieje
-					exit = 1;
 					check = 1;
 				}
 			}
 
-			if(exit == 1) // nie sprawdzaj dalej
+			if(check == 1) // nie sprawdzaj dalej
 				break;
-
 		}
+
 		fclose(users_data);
 		if(tekstline)
 			free(tekstline);
@@ -202,6 +196,5 @@ int main(int argc, char **argv)
 			fclose(users_data);
 
 		}
-		free(login);
 	}
 }
