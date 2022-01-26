@@ -32,13 +32,13 @@ int main(int argc, char **argv)
 	char mac[17]; // zapisujemy tu adres MAC uzytkownika
 	size_t bufsize = 50; // wielkosc buforu
 	char line[MAXLINE]; // bufor
+	int exit = 3; // wyjscie z petli ktora odczytuje i sprawdza czy istnieje dany uzytkownik
 
 	if (argc != 4){
 		fprintf(stderr, "usage: %s  <IP-multicast-address> <port#> <if name>\n", argv[0]);
 		return 1;
 	}
 
-	login = (char *)malloc(bufsize * sizeof(char));
 
 /////////////////////////////////////////
 	int listenfd, connfd,n;
@@ -73,6 +73,7 @@ int main(int argc, char **argv)
         }
 	fprintf(stderr,"Waiting for clients ... \n");
 	for ( ; ; ) {
+		login = (char *)malloc(bufsize * sizeof(char));
 		len = sizeof(cliaddr);
         	if ( (connfd = accept(listenfd, (struct sockaddr *) &cliaddr, &len)) < 0){
                 	fprintf(stderr,"accept error : %s\n", strerror(errno));
@@ -98,46 +99,76 @@ int main(int argc, char **argv)
 	            {   
 	              printf("Error! Could not open file\n"); 
 	            	return 1; 
-	            } 
-		fgets(line, MAXLINE, users_data); // odczyt z pliku do bufora calosci (login i mac)
+	            }
 
+
+		char * tekstline = NULL;
+		size_t len = 0;
+		ssize_t readline; 
+		int check = 0;
+		int iter = 1;
+		while((readline = getline(&tekstline,&len,users_data)) != -1){
+			//fgets(line, MAXLINE, users_data); // odczyt z pliku do bufora calosci (login i mac)
+			printf("iteracja nr:%d\n",iter);
+			iter++;
+			//fclose(users_data);
+
+	// odczyt loginu z pliku
+			int mac_position;
+			for(int i = 0; i< MAXLINE; i++){ 
+				if(tekstline[i] == ' '){
+					mac_position = i;
+					break;
+				}
+				login[i] = tekstline[i];
+				printf("%c",login[i]);
+			}
+			printf("\n");
+
+	// odczyt adresu MAC z pliku i sprawdzenie czy uruchomiono program na interfejsie ktory juz sie rejestrowal
+			char mac_file[17];
+			int j=0;
+			for(int i = mac_position+1; i<MAXLINE; i++,j++){ //odczyt z pliku zapisanego adresu MAC
+				if(tekstline[i] == '\n')
+					break;
+				mac_file[j] = tekstline[i];
+				printf("%c",tekstline[i]);
+			}
+			printf("\n");
+
+			printf("mac get:\n");
+			for(int i = 0; i<strlen(mac);i++){
+				printf("%c",mac[i]);
+			}
+			printf("\n");
+			printf("mac file:\n");
+			for(int i = 0; i<strlen(mac);i++){
+				printf("%c",mac_file[i]);
+			}
+
+			printf("\npetla:\n");
+			for(int k = 0; k<=sizeof(mac_file)-1; k++){ //sprawdzenie czy adres mac juz istnieje w plikach (czy uzytkownik sie juz rejestrowal)
+				printf("send:%c\n",mac[k]);
+				printf("file:%c\n",mac_file[k]);
+
+				if(mac_file[k] != mac[k]){ //kiedy nie istnieje
+					check = 0;
+					exit = 0;
+					break;
+				}
+				else{	//kiedy istnieje
+					exit = 1;
+					check = 1;
+				}
+			}
+
+			if(exit == 1) // nie sprawdzaj dalej
+				break;
+
+		}
 		fclose(users_data);
-
-// odczyt loginu z pliku
-		int mac_position;
-		for(int i = 0; i< MAXLINE; i++){ 
-			if(line[i] == ' '){
-				mac_position = i;
-				break;
-			}
-			login[i] = line[i];
-		}
-
-/*		printf("login:");
-		for(int i = 0; i< mac_position; i++){
-			printf("%c",login[i]);
-		}
-		printf("\n");
-*/
-
-// odczyt adresu MAC z pliku i sprawdzenie czy uruchomiono program na interfejsie ktory juz sie rejestrowal
-		char mac_file[17];
-		int j=0;
-		for(int i = mac_position+1; i<MAXLINE; i++,j++){ //odczyt z pliku zapisanego adresu MAC
-			if(line[i] == '\n')
-				break;
-			mac_file[j] = line[i];
-		}
-
-		int check;
-		for(int k = 0; k<=sizeof(mac_file)-1; k++){ //sprawdzenie czy adres mac juz istnieje w plikach (czy uzytkownik sie juz rejestrowal)
-			if(mac_file[k] != mac[k]){ //kiedy nie istnieje
-				check = 0;
-				break;
-			}
-			else	//kiedy istnieje
-				check = 1;
-		}
+		if(tekstline)
+			free(tekstline);
 
 //kontrola czy uzytkownik istnieje i wyswietlenie informacji dla uzytkownika
 		bzero(buff,sizeof(buff));
@@ -160,20 +191,17 @@ int main(int argc, char **argv)
 			fprintf(stdout,"New user registered: %s\n\n",buff);
 
 // zapis do pliku danych uzytkownika kiedy jego dane nie sa zapisane w pliku (rejestracja)
-			users_data = fopen("users_data.txt","w");
+			users_data = fopen("users_data.txt","a");
 			if (users_data == NULL){   
 				printf("Error! Could not open file\n"); 
 				return 1; 
 			}
+
 			fprintf(users_data, "%s ", buff);
 			fprintf(users_data, "%s\n", mac);
 			fclose(users_data);
+
 		}
-
+		free(login);
 	}
-//////////////////////////////////////////
-
-
-
-
 }
