@@ -22,55 +22,51 @@
 
 int main(int argc, char **argv)
 {
-	int sendfd, recvfd;
-	const int on = 1;
-	socklen_t salen;
-	struct sockaddr	*sasend, *sarecv; // przechowuje inf o rodzinie adresu afinet
-	struct sockaddr_in6 *ipv6addr; // to co nizej tylko dodatkowe opcje
-	struct sockaddr_in *ipv4addr; //struktura przechowuje rodzine adresu,port,adres
-	char *login; // zapiszemy tu login uzytkownika
-	char mac[17]; // zapisujemy tu adres MAC uzytkownika
-	size_t bufsize = 50; // wielkosc buforu
-	char line[MAXLINE]; // bufor
-	int exit = 3; // wyjscie z petli ktora odczytuje i sprawdza czy istnieje dany uzytkownik
-
-
-
-/////////////////////////////////////////
-	int listenfd, connfd,n;
+	int listenfd, connfd,n; // for server and client socket descriptor
 	socklen_t len;
+	const int on = 1;
+	char *login; // for user login
+	char mac[17]; // for user MAC Address 
+	size_t bufsize = 50; // buffer size
+	char line[MAXLINE]; // bufor
 	char buff[MAXLINE], str[INET_ADDRSTRLEN+1];
-	time_t	ticks;
 	struct sockaddr_in	servaddr, cliaddr;
 
-        if ( (listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
-                fprintf(stderr,"socket error : %s\n", strerror(errno));
-                return 1;
-        }
+	// socket on which we listen for connection
+    if((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
+        fprintf(stderr,"socket error : %s\n", strerror(errno));
+        return 1;
+    }
 
+	// SO_REUSEADDR socket option allows a socket to bind to a port in use by another socket
 	if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0){
 		fprintf(stderr,"setsockopt error : %s\n", strerror(errno));
 		return 1;
 	}
 
+	// clear and fill the server data structure
 	bzero(&servaddr, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_addr.s_addr   = htonl(INADDR_ANY);
-	servaddr.sin_port   = htons(13);	/* daytime server */
+	servaddr.sin_port   = htons(13);
 
-        if ( bind( listenfd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0){
-                fprintf(stderr,"bind error : %s\n", strerror(errno));
-                return 1;
-        }
+	// assigns the address to the socket descriptor
+    if ( bind( listenfd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0){
+        fprintf(stderr,"bind error : %s\n", strerror(errno));
+        return 1;
+    }
 
-        if ( listen(listenfd, LISTENQ) < 0){
-                fprintf(stderr,"listen error : %s\n", strerror(errno));
-                return 1;
-        }
+	// socket that will be used to accept incoming connection
+    if ( listen(listenfd, LISTENQ) < 0){
+        fprintf(stderr,"listen error : %s\n", strerror(errno));
+        return 1;
+    }
+
 	fprintf(stderr,"Waiting for clients ... \n");
+
 	for ( ; ; ) {
-//		login = (char *)malloc(bufsize * sizeof(char));
 		len = sizeof(cliaddr);
+			// accept the connection and create a socket
         	if ( (connfd = accept(listenfd, (struct sockaddr *) &cliaddr, &len)) < 0){
                 	fprintf(stderr,"accept error : %s\n", strerror(errno));
                 	continue;
@@ -80,16 +76,18 @@ int main(int argc, char **argv)
 		bzero(buff,sizeof(buff));
 		bzero(line,sizeof(line));
 	   	inet_ntop(AF_INET, (struct sockaddr  *) &cliaddr.sin_addr,  str, sizeof(str));
+
 		printf("Connection from:\nIP: %s\n", str);
 
-		read(connfd, buff, MAXLINE); // get address MAC
+		// get MAC Address
+		read(connfd, buff, MAXLINE); 
 		fprintf(stdout,"MAC: %s",buff);
 
 		for(int i = 0 ; i < 17; i++){
-			mac[i] = buff[i];
+			mac[i] = buff[i]; // copy
 		}
 
-// odczyt z pliku danych uzytkownika
+		// reading from user data file
 		FILE *users_data = fopen("users_data.txt","r");
 		if (users_data == NULL) 
 	            {   
@@ -102,13 +100,12 @@ int main(int argc, char **argv)
 		size_t len = 0;
 		ssize_t readline; 
 		int check = 0;
-		int iter = 1;
+
+		// reading every line in the file
 		while((readline = getline(&tekstline,&len,users_data)) != -1){
 			login = (char *)malloc(bufsize * sizeof(char));
-//			printf("iteracja nr:%d\n",iter);
-//			iter++;
 
-// odczyt loginu z pliku
+			// reading the login from the file
 			int mac_position;
 			for(int i = 0; i< MAXLINE; i++){ 
 				if(tekstline[i] == ' '){
@@ -116,47 +113,31 @@ int main(int argc, char **argv)
 					break;
 				}
 				login[i] = tekstline[i];
-//				printf("%c",login[i]);
 			}
-//			printf("\n");
 
-// odczyt adresu MAC z pliku i sprawdzenie czy uruchomiono program na interfejsie ktory juz sie rejestrowal
+
+			// reading the MAC address from the file and checking if the program is running on the interface that has already been registered
 			char mac_file[17];
 			int j=0;
-			for(int i = mac_position+1; i<MAXLINE; i++,j++){ //odczyt z pliku zapisanego adresu MAC
+
+			for(int i = mac_position+1; i<MAXLINE; i++,j++){ // reading the saved MAC address from the file
 				if(tekstline[i] == '\n')
 					break;
 				mac_file[j] = tekstline[i];
-//				printf("%c",tekstline[i]);
 			}
-/*			printf("\n");
 
-			printf("mac get:\n");
-			for(int i = 0; i<strlen(mac);i++){
-				printf("%c",mac[i]);
-			}
-			printf("\n");
-			printf("mac file:\n");
-			for(int i = 0; i<strlen(mac);i++){
-				printf("%c",mac_file[i]);
-			}
-*/
-//			printf("\npetla:\n");
-			for(int k = 0; k<=sizeof(mac_file)-1; k++){ //sprawdzenie czy adres mac juz istnieje w plikach (czy uzytkownik sie juz rejestrowal)
-//				printf("send:%c\n",mac[k]);
-//				printf("file:%c\n",mac_file[k]);
-
-				if(mac_file[k] != mac[k]){ //kiedy nie istnieje
+			for(int k = 0; k<=sizeof(mac_file)-1; k++){ // checking if the MAC address already exists in the files (whether the user has already registered)
+				if(mac_file[k] != mac[k]){ // when not exist
 					free(login);
 					check = 0;
 					break;
 				}
-				else{	//kiedy istnieje
+				else{	// when exist
 					check = 1;
 				}
 			}
 
-			if(check == 1) // nie sprawdzaj dalej
+			if(check == 1) // don't check any further
 				break;
 		}
 
@@ -164,7 +145,7 @@ int main(int argc, char **argv)
 		if(tekstline)
 			free(tekstline);
 
-//kontrola czy uzytkownik istnieje i wyswietlenie informacji dla uzytkownika
+		// checking if the user exists and send information to client (send 1 to client)
 		bzero(buff,sizeof(buff));
 		if(check){
 			fprintf(stdout,"%s connected!\n\n",login);
@@ -172,19 +153,20 @@ int main(int argc, char **argv)
 	        	if( write(connfd, buff, strlen(buff))< 0 )
 	                	fprintf(stderr,"write error : %s\n", strerror(errno));
 		}
-		else{ //kiedy nie istnieje to rejestrujemy uzytkownika (podajemy login)
+		else{ // when it does not exist, we register the user (send 0 to client)
 			snprintf(buff, sizeof(buff), "0\n");
 	        	if( write(connfd, buff, strlen(buff))< 0 )
 	                	fprintf(stderr,"write error : %s\n", strerror(errno));
 		}
 
 		bzero(buff,sizeof(buff));
+		// when user does not exist, we wait until he enters the login
 		if(!check){
 			int k;
-			while ( (k = read(connfd, buff, MAXLINE)) < 3);
+			while ( (k = read(connfd, buff, MAXLINE)) < 3); // wait for login
 			fprintf(stdout,"New user registered: %s\n\n",buff);
 
-// zapis do pliku danych uzytkownika kiedy jego dane nie sa zapisane w pliku (rejestracja)
+			// saving the user's data to a file when his data is not saved in the file (registration)
 			users_data = fopen("users_data.txt","a");
 			if (users_data == NULL){   
 				printf("Error! Could not open file\n"); 
