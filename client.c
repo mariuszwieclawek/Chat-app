@@ -19,6 +19,7 @@
 #define IPV6 1
 
 
+// the function gets the mac address from the interface
 int get_mac_addr(char* name, char* mac){
 	struct ifreq ifr;
 	int sd,merr;
@@ -54,35 +55,7 @@ int get_mac_addr(char* name, char* mac){
 }
 
 
-
-//zamienia nazwe interfjesu na jego indeks
-unsigned int _if_nametoindex(const char *ifname)
-{
-	int s;
-	struct ifreq ifr;
-	unsigned int ni;
-
-	s = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
-	if (s != -1) {
-
-	memset(&ifr, 0, sizeof(ifr));
-	strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
-	
-	if (ioctl(s, SIOCGIFINDEX, &ifr) != -1) {
-			close(s);
-			return (ifr.ifr_ifindex);
-	}
-		close(s);
-		return -1;
-	}
-}
-
-// #include <net/if.h>
-// unsigned int if_nametoindex(const char *ifname);
-// char *if_indextoname(unsigned int ifindex, char *ifname);
-
-
-//funkcja tworzaca gniazdo wysylajace dla udp
+// function to create a send socket for udp
 int snd_udp_socket(const char *serv, int port, SA **saptr, socklen_t *lenp)
 {
 	int sockfd, n;
@@ -133,6 +106,8 @@ int snd_udp_socket(const char *serv, int port, SA **saptr, socklen_t *lenp)
 }
 /* end send_udp_socket */
 
+
+// the function returns which family of addresses we are using
 int family_to_level(int family)
 {
 	switch (family) {
@@ -147,6 +122,8 @@ int family_to_level(int family)
 	}
 }
 
+
+// function joins the interface to a multicast group
 int mcast_join(int sockfd, const SA *grp, socklen_t grplen,const char *ifname, u_int ifindex)
 {
 	struct group_req req;
@@ -366,17 +343,23 @@ void recv_all(int recvfd, socklen_t salen)
 
 int main(int argc, char **argv)
 {
-	int sendfd, recvfd;
+	int servfd; // server socket TCP
+	struct sockaddr_in	servaddr; // data structure for server
+	int sendfd, recvfd; // sendind and receiving socket UDP
 	const int on = 1;
 	socklen_t salen;
-	struct sockaddr	*sasend, *sarecv; // przechowuje inf o rodzinie adresu afinet
-	struct sockaddr_in6 *ipv6addr; // to co nizej tylko dodatkowe opcje
-	struct sockaddr_in *ipv4addr; //struktura przechowuje rodzine adresu,port,adres
-	char *login; // zapiszemy tu login uzytkownika
-	char* mac; // zapisujemy tu adres MAC uzytkownika
-	size_t bufsize = 50; // wielkosc buforu
-	char line[MAXLINE]; // bufor
+	struct sockaddr	*sasend, *sarecv; // information about address family
+	struct sockaddr_in6 *ipv6addr; 
+	struct sockaddr_in *ipv4addr; 
+	char *login; // for user login
+	char* mac; // for user MAC Address
+	size_t bufsize = 50; // buffer size
+	char line[MAXLINE]; // buffer
+	char send[MAXLINE + 1];
+	char recvline[MAXLINE];
+	int err; // for address ip filling error
 
+	// check that all arguments are given
 	if (argc != 5){
 		fprintf(stderr, "usage: %s  <IP-multicast-address> <port#> <if name> <serv-address-IP>\n", argv[0]);
 		return 1;
@@ -385,25 +368,20 @@ int main(int argc, char **argv)
 	login = (char *)malloc(bufsize * sizeof(char));
 	mac = (char *)malloc(bufsize * sizeof(char));
 
-// odczyt adresu MAC
+	// read MAC Address
 	get_mac_addr(argv[3],mac);
 
 
-//////////////////////////////////////
-	int servfd;
-	struct sockaddr_in	servaddr;
-	char send[MAXLINE + 1];
-	int err;
-
+	// create a socket for the server
 	if ( (servfd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
 		fprintf(stderr,"socket error : %s\n", strerror(errno));
 		return 1;
 	}
 
+	// fill the server data structure
 	bzero(&servaddr, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
-	servaddr.sin_port   = htons(13);	/* daytime server */
-
+	servaddr.sin_port   = htons(13);
 	if ( (err=inet_pton(AF_INET, argv[4], &servaddr.sin_addr)) <= 0){
 		if(err == 0 )
 			fprintf(stderr,"inet_pton error for %s \n", argv[4] );
@@ -411,27 +389,28 @@ int main(int argc, char **argv)
 			fprintf(stderr,"inet_pton error for %s : %s \n", argv[4], strerror(errno));
 		return 1;
 	}
+
+	// connect to the server socket
 	if (connect(servfd, (SA *) &servaddr, sizeof(servaddr)) < 0){
 		fprintf(stderr,"connect error : %s \n", strerror(errno));
 		return 1;
 	}
+
+	// send MAC Address to server
 	bzero(send, sizeof(send));
 	snprintf(send, sizeof(send), "%s",mac);
-        if( write(servfd, send, sizeof(send))< 0 )
-               	fprintf(stderr,"write error : %s\n", strerror(errno));
+    if( write(servfd, send, sizeof(send))< 0 )
+        fprintf(stderr,"write error : %s\n", strerror(errno));
 
 
-///czekamy na identyfikacje
-	char recvline[MAXLINE];
-	int n;
+	// wait for user identification
+	//int n;
 	bzero(recvline, sizeof(recvline));
+	read(servfd,recvline,MAXLINE); // read from server
+	char check_2 = recvline[0]; // we get 0 if unregistered or 1 if registered
 
-	read(servfd,recvline,MAXLINE); // check if the user is registered
-	char check_2 = recvline[0];
-//	fprintf(stdout,"check = %s\n",recvline);
-
-
-	if(check_2 == '0'){
+	// check if the user is registered
+	if(check_2 == '0'){ 
 		printf("You are unregistered, please enter your nickname!\nLogin:");
 		int no_read = getline(&login,&bufsize,stdin);
 		login[no_read-1] = '\0'; 
@@ -445,19 +424,17 @@ int main(int argc, char **argv)
 		printf("Welcome back %s!\nYou can start texting:\n",login);
 	}
 
-/////////////////////////////////////
 
-
-// funkcja na podstawie adresu 4/6 i portu tworzy gniazdo wysylajace oraz wypelnia strukture adresowa sasend, pozniej adres stad wykorzystujemy w funkcji wysylajacej
+	// the function on the basis of 4/6 address and port creates a sending socket and fills the sasend address structure
 	sendfd = snd_udp_socket(argv[1], atoi(argv[2]), &sasend, &salen);
 
-// tworzymy gniazdo odbierajaca, rodzina adresow ze struktury sasend 
+	// create the receiving socket, the address family from the sasend structure
 	if ( (recvfd = socket(sasend->sa_family, SOCK_DGRAM, 0)) < 0){
 		fprintf(stderr,"socket error : %s\n", strerror(errno));
 		return 1;
 	}
 
-// ustawiamy na gniezdzie odbierajacym,SO_REUSEADDR w jednej stacji mozemy odpalic kilka  procesow i beda nasluchiwac na tym samym porcie i beda mogly odbierac miedzy soba dane
+	// SO_REUSEADDR, in one station we can run several processes and they will listen on the same port and will be able to receive data between them
 	if (setsockopt(recvfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0){
 		fprintf(stderr,"setsockopt error : %s\n", strerror(errno));
 		return 1;
@@ -466,50 +443,23 @@ int main(int argc, char **argv)
 	sarecv = malloc(salen);
 	memcpy(sarecv, sasend, salen);
 
-// Dowiazanie sie gniazna do interfejsu , ta linia kodu i te ponizsze mniej wiecej robia to samo
-// 1 sposob
+	// binding socket to the interface
 	setsockopt(sendfd, SOL_SOCKET, SO_BINDTODEVICE, argv[3], strlen(argv[3]));
 
 
-// tez dowiazanie
-// 2 sposob
-/*	if(sarecv->sa_family == AF_INET6){
-	  ipv6addr = (struct sockaddr_in6 *) sarecv;
-	  ipv6addr->sin6_addr =  in6addr_any;
-
-	  int32_t ifindex;
-          ifindex = if_nametoindex(argv[3]);
-	  if(setsockopt(sendfd, IPPROTO_IPV6, IPV6_MULTICAST_IF,&ifindex, sizeof(ifindex)) < 0){
-	  		perror("setting local interface");
-			exit(1);};
-	  }
-
-	if(sarecv->sa_family == AF_INET){
-	  ipv4addr = (struct sockaddr_in *) sarecv;
-	  ipv4addr->sin_addr.s_addr =  htonl(INADDR_ANY);
-
-	  struct in_addr        localInterface; //struktura przechowuje sam adres ip
-	  localInterface.s_addr = inet_addr("127.0.0.1");
-	 if (setsockopt(sendfd, IPPROTO_IP, IP_MULTICAST_IF,(char *)&localInterface,sizeof(localInterface)) < 0) {
-			perror("setting local interface");
-			exit(1);
-	  }
-	}
-*/
-
-// dowiazujemy sie do konkretnego portu
+	// assigns the address to the socket descriptor
 	if( bind(recvfd, sarecv, salen) < 0 ){
 	    fprintf(stderr,"bind error : %s\n", strerror(errno));
 	    return 1;
 	}
 
-// dowiazujemy sie grupy multicastowej
+	// connect to the multicast group
 	if( mcast_join(recvfd, sasend, salen, argv[3], 0) < 0 ){
 		fprintf(stderr,"mcast_join() error : %s\n", strerror(errno));
 		return 1;
 	}
 
-//
+	//
 	mcast_set_loop(sendfd, 1);
 
 	if (fork() == 0)
