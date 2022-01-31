@@ -28,9 +28,11 @@ int main(int argc, char **argv)
 	char *login; // for user login
 	char mac[17]; // for user MAC Address 
 	size_t bufsize = 50; // buffer size
-	char line[MAXLINE]; // bufor
-	char buff[MAXLINE], str[INET_ADDRSTRLEN+1];
-	struct sockaddr_in	servaddr, cliaddr;
+	char buff[MAXLINE]; // buffer
+	struct sockaddr_in	servaddr, cliaddr; // data for server and client
+	char * readrow = NULL; // for read one row from file
+	ssize_t readline; // for check if all lines is read from file 
+	int check = 0; // for check if the user is regitered
 
 	// socket on which we listen for connection
     if((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
@@ -72,12 +74,11 @@ int main(int argc, char **argv)
                 	continue;
         	}
 
-		bzero(str, sizeof(str));
 		bzero(buff,sizeof(buff));
-		bzero(line,sizeof(line));
-	   	inet_ntop(AF_INET, (struct sockaddr  *) &cliaddr.sin_addr,  str, sizeof(str));
 
-		printf("Connection from:\nIP: %s\n", str);
+	   	inet_ntop(AF_INET, (struct sockaddr  *) &cliaddr.sin_addr,  buff, sizeof(buff));
+
+		printf("Connection from:\nIP: %s\n", buff);
 
 		// get MAC Address
 		read(connfd, buff, MAXLINE); 
@@ -96,34 +97,29 @@ int main(int argc, char **argv)
 	            }
 
 
-		char * tekstline = NULL;
-		size_t len = 0;
-		ssize_t readline; 
-		int check = 0;
-
 		// reading every line in the file
-		while((readline = getline(&tekstline,&len,users_data)) != -1){
+		while((readline = getline(&readrow,&bufsize,users_data)) != -1){
 			login = (char *)malloc(bufsize * sizeof(char));
 
 			// reading the login from the file
 			int mac_position;
 			for(int i = 0; i< MAXLINE; i++){ 
-				if(tekstline[i] == ' '){
+				if(readrow[i] == ' '){
 					mac_position = i;
 					break;
 				}
-				login[i] = tekstline[i];
+				login[i] = readrow[i];
 			}
 
 
 			// reading the MAC address from the file and checking if the program is running on the interface that has already been registered
 			char mac_file[17];
-			int j=0;
+//			int j=0;
 
-			for(int i = mac_position+1; i<MAXLINE; i++,j++){ // reading the saved MAC address from the file
-				if(tekstline[i] == '\n')
+			for(int i = mac_position+1, int j = 0; i<MAXLINE; i++,j++){ // reading the saved MAC address from the file
+				if(readrow[i] == '\n')
 					break;
-				mac_file[j] = tekstline[i];
+				mac_file[j] = readrow[i];
 			}
 
 			for(int k = 0; k<=sizeof(mac_file)-1; k++){ // checking if the MAC address already exists in the files (whether the user has already registered)
@@ -142,8 +138,8 @@ int main(int argc, char **argv)
 		}
 
 		fclose(users_data);
-		if(tekstline)
-			free(tekstline);
+		if(readrow)
+			free(readrow);
 
 		// checking if the user exists and send information to client (send 1 to client)
 		bzero(buff,sizeof(buff));
