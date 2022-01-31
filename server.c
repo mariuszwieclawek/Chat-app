@@ -114,9 +114,7 @@ int main(int argc, char **argv)
 
 			// reading the MAC address from the file and checking if the program is running on the interface that has already been registered
 			char mac_file[17];
-//			int j=0;
-
-			for(int i = mac_position+1, int j = 0; i<MAXLINE; i++,j++){ // reading the saved MAC address from the file
+			for(int i = mac_position+1, j = 0; i<MAXLINE; i++,j++){ // reading the saved MAC address from the file
 				if(readrow[i] == '\n')
 					break;
 				mac_file[j] = readrow[i];
