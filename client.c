@@ -24,8 +24,7 @@ int get_mac_addr(char* name, char* mac){
 	struct ifreq ifr;
 	int sd,merr;
 	sd = socket(PF_INET,SOCK_STREAM,0);
-	if(sd < 0)
-	{
+	if(sd < 0){
 		fprintf(stderr,"if_up: socket eroor %s\n", strerror(errno));
 		return sd;
 	}
@@ -33,8 +32,7 @@ int get_mac_addr(char* name, char* mac){
 	memset(&ifr,0,sizeof(ifr));
 	sprintf(ifr.ifr_name,"%s",name);
 	merr = ioctl(sd,SIOCGIFHWADDR,&ifr); //read MAC address
-	if(merr < 0)
-	{
+	if(merr < 0){
 		close(sd);
 		return merr;
 	}
@@ -310,17 +308,17 @@ void recv_all(int recvfd, socklen_t salen){
 	for ( ; ; ) {
 		len = salen;
 		if( (n = recvfrom(recvfd, line, MAXLINE, 0, safrom, &len)) < 0 )
-		  perror("recvfrom() error");
+			perror("recvfrom() error");
 
 		line[n] = 0;	/* null terminate */
 		
 		if( safrom->sa_family == AF_INET6 ){
-		      cliaddr = (struct sockaddr_in6*) safrom;
-		      inet_ntop(AF_INET6, (struct sockaddr  *) &cliaddr->sin6_addr,  addr_str, sizeof(addr_str));
+			cliaddr = (struct sockaddr_in6*) safrom;
+			inet_ntop(AF_INET6, (struct sockaddr  *) &cliaddr->sin6_addr,  addr_str, sizeof(addr_str));
 		}
 		else{
-		      cliaddrv4 = (struct sockaddr_in*) safrom;
-		      inet_ntop(AF_INET, (struct sockaddr  *) &cliaddrv4->sin_addr,  addr_str, sizeof(addr_str));
+			cliaddrv4 = (struct sockaddr_in*) safrom;
+			inet_ntop(AF_INET, (struct sockaddr  *) &cliaddrv4->sin_addr,  addr_str, sizeof(addr_str));
 		}
 
 		printf("%s", line);
@@ -403,7 +401,7 @@ int main(int argc, char **argv)
 		login[no_read-1] = '\0'; 
 		snprintf(sendline,sizeof(sendline),"%s",login);
 	        if( write(servfd, sendline, sizeof(sendline))< 0 )
-        	       	fprintf(stderr,"write error : %s\n", strerror(errno));
+        		fprintf(stderr,"write error : %s\n", strerror(errno));
 	}
 	else{
 		for(int i = 1; i < strlen(recvline); i++)

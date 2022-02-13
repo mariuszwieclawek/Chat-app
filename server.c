@@ -68,11 +68,11 @@ int main(int argc, char **argv)
 
 	for ( ; ; ) {
 		len = sizeof(cliaddr);
-			// accept the connection and create a socket
-        	if ( (connfd = accept(listenfd, (struct sockaddr *) &cliaddr, &len)) < 0){
-                	fprintf(stderr,"accept error : %s\n", strerror(errno));
-                	continue;
-        	}
+		// accept the connection and create a socket
+        if ( (connfd = accept(listenfd, (struct sockaddr *) &cliaddr, &len)) < 0){
+			fprintf(stderr,"accept error : %s\n", strerror(errno));
+			continue;
+        }
 
 		bzero(buff,sizeof(buff));
 
@@ -90,11 +90,10 @@ int main(int argc, char **argv)
 
 		// reading from user data file
 		FILE *users_data = fopen("users_data.txt","r");
-		if (users_data == NULL) 
-	            {   
-	              printf("Error! Could not open file\n"); 
-	            	return 1; 
-	            }
+		if (users_data == NULL){   
+			printf("Error! Could not open file\n"); 
+			return 1; 
+	    }
 
 
 		// reading every line in the file
@@ -145,12 +144,12 @@ int main(int argc, char **argv)
 			fprintf(stdout,"%s connected!\n\n",login);
 			snprintf(buff, sizeof(buff), "1%s",login);
 	        	if( write(connfd, buff, strlen(buff))< 0 )
-	                	fprintf(stderr,"write error : %s\n", strerror(errno));
+					fprintf(stderr,"write error : %s\n", strerror(errno));
 		}
 		else{ // when it does not exist, we register the user (send 0 to client)
 			snprintf(buff, sizeof(buff), "0\n");
 	        	if( write(connfd, buff, strlen(buff))< 0 )
-	                	fprintf(stderr,"write error : %s\n", strerror(errno));
+					fprintf(stderr,"write error : %s\n", strerror(errno));
 		}
 
 		bzero(buff,sizeof(buff));
