@@ -20,12 +20,11 @@
 #define LISTENQ 10
 
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv){
 	int listenfd, connfd,n; // for server and client socket descriptor
 	socklen_t len;
 	const int on = 1;
-	char *login; // for user login
+	char *login = NULL; // for user login
 	char mac[17]; // for user MAC Address 
 	size_t bufsize = 50; // buffer size
 	char buff[MAXLINE]; // buffer
@@ -69,10 +68,10 @@ int main(int argc, char **argv)
 	for ( ; ; ) {
 		len = sizeof(cliaddr);
 		// accept the connection and create a socket
-        if ( (connfd = accept(listenfd, (struct sockaddr *) &cliaddr, &len)) < 0){
+	        if ( (connfd = accept(listenfd, (struct sockaddr *) &cliaddr, &len)) < 0){
 			fprintf(stderr,"accept error : %s\n", strerror(errno));
 			continue;
-        }
+       		}
 
 		bzero(buff,sizeof(buff));
 
@@ -97,6 +96,7 @@ int main(int argc, char **argv)
 
 
 		// reading every line in the file
+		readrow = (char *)malloc(bufsize * sizeof(char));
 		while((readline = getline(&readrow,&bufsize,users_data)) != -1){
 			login = (char *)malloc(bufsize * sizeof(char));
 
@@ -144,12 +144,12 @@ int main(int argc, char **argv)
 			fprintf(stdout,"%s connected!\n\n",login);
 			snprintf(buff, sizeof(buff), "1%s",login);
 	        	if( write(connfd, buff, strlen(buff))< 0 )
-					fprintf(stderr,"write error : %s\n", strerror(errno));
+				fprintf(stderr,"write error : %s\n", strerror(errno));
 		}
 		else{ // when it does not exist, we register the user (send 0 to client)
 			snprintf(buff, sizeof(buff), "0\n");
 	        	if( write(connfd, buff, strlen(buff))< 0 )
-					fprintf(stderr,"write error : %s\n", strerror(errno));
+				fprintf(stderr,"write error : %s\n", strerror(errno));
 		}
 
 		bzero(buff,sizeof(buff));
