@@ -6,9 +6,10 @@ ensuring communication between clients using a multicast address.
 The server stores the login and MAC address of registered users in a text file that
 acts as a user base.
 
+# Documentation
 documentation: [documentation.pdf](https://github.com/mariuszwieclawek/Chat-app/files/8410460/documentation.pdf)
 
-How it works:
+# How it works:
 ![image](https://user-images.githubusercontent.com/57256517/161555181-e99ef6f3-856d-4a22-9155-2079b95cb2f2.png)
 On the server side, we can see that it has displayed information about the client joining.
 The console displays IP and MAC addresses as well as a message informing about registration / logging in
